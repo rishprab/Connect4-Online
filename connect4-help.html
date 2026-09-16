@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Play — Connect 4</title>
+<style>
+  :root {
+    --p1: #ff4d5e; --p1-dark: #b2202f;
+    --p2: #ffd23f; --p2-dark: #cf9c0a;
+    --board-blue: #2f6fd8; --board-dark: #1d4fa8;
+    --text: #2a2540; --muted: #6c6484;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(160deg, #fff6d5 0%, #ffe0ec 55%, #e3ecff 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    padding: 20px 16px 60px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  a.back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 0.85rem; margin-bottom: 14px; font-weight: 700; }
+  h1 { font-size: 1.7rem; margin: 4px 0 2px; text-align: center; color: var(--board-dark); text-shadow: 2px 2px 0 rgba(255,255,255,0.6); }
+  p.sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 22px; text-align: center; line-height: 1.5; }
+  h2 { font-size: 1.15rem; margin: 26px 0 10px; color: var(--board-dark); }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 8px 0 rgba(0,0,0,0.06), 0 10px 22px rgba(0,0,0,0.08);
+  }
+  .card p { margin: 0 0 8px; font-size: 0.92rem; line-height: 1.55; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+  .dot.p1 { background: var(--p1); border: 2px solid var(--p1-dark); }
+  .dot.p2 { background: var(--p2); border: 2px solid var(--p2-dark); }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 38px;
+    margin-bottom: 14px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .steps li:last-child { margin-bottom: 0; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #fff6d5; border: 2px solid var(--board-blue); color: var(--board-dark);
+    font-weight: 800; font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .steps li strong { color: var(--text); }
+
+  .win-grid {
+    display: grid; grid-template-columns: repeat(4, 20px); grid-auto-rows: 20px;
+    gap: 3px; margin: 6px 0;
+  }
+  .win-grid .c { width: 20px; height: 20px; border-radius: 50%; background: #e7e2f3; }
+  .win-grid .c.on { background: var(--p1); border: 2px solid var(--p1-dark); }
+  .direction-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .direction-row:last-child { margin-bottom: 0; }
+  .direction-row .label { font-weight: 800; font-size: 0.88rem; flex-shrink: 0; width: 92px; }
+
+  .mode-badge {
+    display: inline-block; font-size: 0.72rem; font-weight: 800;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
+  }
+  .mode-badge.offline { background: #ffe6c2; color: #9c5a00; }
+  .mode-badge.online { background: #d6e9ff; color: var(--board-dark); }
+
+  .tip { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="javascript:window.close()">← Close this tab</a>
+  <h1>🔴🟡 How to Play Connect 4</h1>
+  <p class="sub">Drop your discs, block your opponent, and get four in a row before they do. Simple to learn — surprisingly hard to master.</p>
+
+  <h2>The basics</h2>
+  <div class="card">
+    <ol class="steps">
+      <li>Two players take turns. <strong>Red</strong> and <strong>Yellow</strong> — Red always goes first in a fresh match.</li>
+      <li>On your turn, drop a disc into any column. It falls straight down and lands on top of whatever's already there (or the floor, if the column's empty).</li>
+      <li>First player to line up <strong>four discs in a row</strong> — horizontally, vertically, or diagonally — wins instantly.</li>
+      <li>If the whole board fills up with nobody connecting four, it's a draw.</li>
+    </ol>
+  </div>
+
+  <h2>Ways to win</h2>
+  <div class="card">
+    <div class="direction-row">
+      <span class="label">↔ Horizontal</span>
+      <div class="win-grid">
+        <div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+      </div>
+    </div>
+    <div class="direction-row">
+      <span class="label">↕ Vertical</span>
+      <div class="win-grid" style="grid-template-columns:20px; grid-template-rows:repeat(4,20px);">
+        <div class="c on"></div><div class="c on"></div><div class="c on"></div><div class="c on"></div>
+      </div>
+    </div>
+    <div class="direction-row">
+      <span class="label">⤡ Either diagonal</span>
+      <div class="win-grid">
+        <div class="c on"></div><div class="c"></div><div class="c"></div><div class="c"></div>
+        <div class="c"></div><div class="c on"></div><div class="c"></div><div class="c"></div>
+        <div class="c"></div><div class="c"></div><div class="c on"></div><div class="c"></div>
+        <div class="c"></div><div class="c"></div><div class="c"></div><div class="c on"></div>
+      </div>
+    </div>
+    <p class="tip">Diagonals go both directions — top-left-to-bottom-right and top-right-to-bottom-left both count.</p>
+  </div>
+
+  <h2>Reading the board</h2>
+  <div class="card">
+    <p>Hover (or tap) a column to see where your disc would land before you commit. Once it drops, watch it bounce into place — the game always plays out the fall honestly based on exactly what's stacked underneath, so a bouncier landing just means it had further to fall.</p>
+    <p>A winning line gets a little pulsing glow so it's obvious at a glance, and yes, there's confetti. You earned it.</p>
+  </div>
+
+  <h2>Playing offline <span class="mode-badge offline">Pass & Play</span></h2>
+  <div class="card">
+    <p>One device, two players, passed back and forth. Enter both names at the start (or leave them blank for "Player 1" and "Player 2"), then just take turns tapping columns on the same screen.</p>
+    <p>The scoreboard keeps track across as many rounds as you want — hit <strong>Play Again</strong> after each game to start a fresh board, and who drops first alternates each round so it stays fair.</p>
+  </div>
+
+  <h2>Playing online <span class="mode-badge online">Two Devices</span></h2>
+  <div class="card">
+    <p>One player creates a game and gets a short room code; the other enters that code to join. Once you're both in, the board appears automatically — no separate "ready up" step needed.</p>
+    <p>The banner at the top always tells you whose turn it is. You can only drop into a column when it's genuinely your turn — tapping out of turn just gives you a gentle reminder instead of doing anything.</p>
+    <p>Got disconnected or refreshed the page? Just reopen the game with the same room code — you'll drop right back into your seat with the board exactly as you left it.</p>
+  </div>
+
+  <p class="tip" style="text-align:center; margin-top:24px;">Four in a row. That's the whole game. Go get them.</p>
+
+</div>
+</body>
+</html>

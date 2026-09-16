@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Connect 4 — Online</title>
+<style>
+  :root {
+    --p1: #ff4d5e; --p1-dark: #b2202f;
+    --p2: #ffd23f; --p2-dark: #cf9c0a;
+    --board-blue: #2f6fd8; --board-dark: #1d4fa8;
+    --text: #2a2540; --muted: #6c6484;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-touch-callout: none; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(160deg, #fff6d5 0%, #ffe0ec 55%, #e3ecff 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 18px 14px 40px;
+  }
+  h1 { font-size: 1.7rem; margin: 4px 0 2px; text-align: center; color: var(--board-dark); text-shadow: 2px 2px 0 rgba(255,255,255,0.6); }
+  p.tagline { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; text-align: center; }
+
+  .screen { display: none; width: 100%; max-width: 720px; flex-direction: column; align-items: center; }
+  .screen.active { display: flex; }
+
+  .card { background: var(--card); border-radius: 20px; padding: 22px; box-shadow: 0 10px 0 rgba(0,0,0,0.08), 0 14px 30px rgba(0,0,0,0.12); width: 100%; max-width: 420px; }
+  label { display: block; font-weight: 800; font-size: 0.85rem; margin: 14px 0 6px; color: var(--muted); }
+  label:first-of-type { margin-top: 0; }
+  input[type=text] {
+    width: 100%; padding: 12px 14px; border-radius: 12px;
+    border: 3px solid #eee1c9; font-size: 1rem; font-weight: 700;
+    background: #fffdf7; color: var(--text); text-transform: none;
+  }
+  input#joinCodeInput { text-transform: uppercase; letter-spacing: 2px; }
+  input[type=text]:focus { outline: none; border-color: var(--board-blue); }
+
+  .dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; display: inline-block; vertical-align: middle; }
+  .dot.p1 { background: var(--p1); border: 2px solid var(--p1-dark); }
+  .dot.p2 { background: var(--p2); border: 2px solid var(--p2-dark); }
+
+  button {
+    font-family: inherit; font-weight: 800; font-size: 1rem;
+    border: none; border-radius: 14px; padding: 14px 20px;
+    cursor: pointer; width: 100%; margin-top: 14px;
+    background: var(--board-blue); color: #fff;
+    box-shadow: 0 6px 0 var(--board-dark);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  button:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--board-dark); }
+  button.secondary { background: #fff; color: var(--board-dark); box-shadow: 0 6px 0 #d8dde8; border: 2px solid #d8dde8; }
+  button.secondary:active { box-shadow: 0 2px 0 #d8dde8; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .btn-row { display: flex; gap: 10px; width: 100%; max-width: 500px; }
+  .btn-row button { margin-top: 12px; }
+
+  .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.8rem; font-weight: 800; margin: 18px 0 6px; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 2px; background: #f0e6d0; }
+
+  .error-text { color: var(--p1-dark); font-size: 0.85rem; font-weight: 700; text-align: center; min-height: 18px; margin-top: 10px; }
+
+  .room-code { font-size: 2.2rem; font-weight: 900; letter-spacing: 6px; text-align: center; color: var(--board-dark); margin: 10px 0; }
+  .lobby-status { text-align: center; color: var(--muted); font-weight: 700; font-size: 0.95rem; }
+  .spinner { width: 28px; height: 28px; border: 4px solid #eee1c9; border-top-color: var(--board-blue); border-radius: 50%; margin: 16px auto; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .turn-banner {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-weight: 800; font-size: 1.05rem;
+    background: var(--card); border-radius: 16px;
+    padding: 12px 20px; margin-bottom: 14px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.06), 0 8px 18px rgba(0,0,0,0.08);
+  }
+  .turn-banner .dot { width: 20px; height: 20px; }
+
+  .scoreboard { display: flex; justify-content: space-between; width: 100%; max-width: 500px; margin-bottom: 12px; font-size: 0.85rem; font-weight: 800; color: var(--muted); }
+  .scoreboard span.count { color: var(--text); font-size: 1rem; margin-left: 4px; }
+
+  .board-wrap { width: 100%; max-width: 500px; position: relative; touch-action: none; }
+  canvas { width: 100%; height: auto; display: block; cursor: pointer; }
+
+  .win-overlay { display: none; position: fixed; inset: 0; z-index: 50; background: rgba(30,20,50,0.55); align-items: center; justify-content: center; padding: 20px; }
+  .win-overlay.active { display: flex; }
+  .win-card {
+    background: var(--card); border-radius: 22px; padding: 28px 26px;
+    text-align: center; max-width: 340px; width: 100%;
+    box-shadow: 0 16px 0 rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.25);
+    animation: pop-in 0.35s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes pop-in { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .win-card h2 { font-size: 1.4rem; margin: 6px 0 4px; }
+  .win-card p { color: var(--muted); margin: 0 0 6px; font-size: 0.9rem; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: #fff; padding: 10px 18px; border-radius: 30px;
+    font-weight: 700; font-size: 0.85rem; z-index: 60; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .toast.show { opacity: 1; }
+
+  a.help-fab {
+    position: fixed; top: 14px; right: 14px; z-index: 30;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #fff; color: var(--board-dark);
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none; font-size: 1.1rem; font-weight: 800;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.1), 0 6px 14px rgba(0,0,0,0.12);
+  }
+</style>
+</head>
+<body>
+
+<a class="help-fab" href="connect4-help.html" target="_blank" rel="noopener" aria-label="How to play">?</a>
+
+<h1>🔴🟡 Connect 4 Online</h1>
+<p class="tagline">Two players, two devices, one board.</p>
+
+<!-- LANDING -->
+<div id="screen-landing" class="screen active">
+  <div class="card">
+    <label>Your Name</label>
+    <input type="text" id="nameInput" placeholder="Enter your name" maxlength="16">
+    <button onclick="createGame()">➕ Create Game</button>
+    <div class="divider">OR</div>
+    <label>Room Code</label>
+    <input type="text" id="joinCodeInput" placeholder="ABCD" maxlength="4">
+    <button class="secondary" onclick="joinGame()">🔑 Join Game</button>
+    <p class="error-text" id="landingError"></p>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen">
+  <div class="card">
+    <p class="lobby-status">Room Code</p>
+    <div class="room-code" id="lobbyCode">----</div>
+    <div class="spinner"></div>
+    <p class="lobby-status" id="lobbyStatusText">Waiting for opponent to join...</p>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="scoreboard">
+    <div><span class="dot p1"></span> <span id="p1ScoreName"></span>: <span class="count" id="p1Score">0</span></div>
+    <div>Draws: <span class="count" id="drawScore">0</span></div>
+    <div><span id="p2ScoreName"></span> <span class="dot p2"></span>: <span class="count" id="p2Score">0</span></div>
+  </div>
+  <div class="turn-banner" id="turnBanner">-</div>
+  <div class="board-wrap">
+    <canvas id="board" width="664" height="652"></canvas>
+  </div>
+  <div class="btn-row">
+    <button class="secondary" onclick="leaveGame()">🚪 Leave Game</button>
+  </div>
+</div>
+
+<!-- WIN / DRAW OVERLAY -->
+<div id="winOverlay" class="win-overlay">
+  <div class="win-card">
+    <h2 id="winTitle">-</h2>
+    <p id="winSub"></p>
+    <button onclick="playAgain()">Play Again</button>
+    <button class="secondary" onclick="leaveGame()">Leave Game</button>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<script>
+// ==================================================================
+// FIREBASE SETUP — this game uses its own Firebase project, separate
+// from the other games in the hub.
+// ==================================================================
+// ====== PASTE YOUR FIREBASE CONFIG HERE ======
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+// ==============================================
+
+let firebaseAvailable = false;
+let auth = null;
+let db = null;
+try {
+  if (typeof firebase === "undefined") throw new Error("Firebase SDK did not load");
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.database();
+  firebaseAvailable = true;
+} catch (e) {
+  console.warn("Firebase unavailable:", e);
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("landingError").textContent = "Couldn't connect to the game server. Check your internet connection and try reloading.";
+  });
+}
+
+// ==================================================================
+// AUTH / ROOM
+// ==================================================================
+let uid = null;
+let gameCode = null;
+let playerName = "";
+let gameData = null;
+let gameRef = null;
+let myColor = null; // 1 or 2
+let opponentUid = null;
+
+if (firebaseAvailable) {
+  auth.onAuthStateChanged(u => { if (u) uid = u.uid; });
+  auth.signInAnonymously().catch(e => document.getElementById("landingError").textContent = "Connection error: " + e.message);
+}
+
+function genRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+function showError(msg) { document.getElementById("landingError").textContent = msg; }
+
+function createGame() {
+  if (!firebaseAvailable) return showError("Couldn't connect to the game server. Check your internet connection.");
+  playerName = document.getElementById("nameInput").value.trim();
+  if (!playerName) return showError("Enter your name first.");
+  if (!uid) return showError("Still connecting, try again in a second.");
+  gameCode = genRoomCode();
+  gameRef = db.ref("games/" + gameCode);
+  gameRef.set({
+    hostUid: uid,
+    status: "lobby",
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    players: { [uid]: { name: playerName, color: 1 } },
+    scores: { 1: 0, 2: 0, draw: 0 }
+  }).then(() => attachGameListener()).catch(e => showError("Could not create game: " + e.message));
+}
+
+function joinGame() {
+  if (!firebaseAvailable) return showError("Couldn't connect to the game server. Check your internet connection.");
+  playerName = document.getElementById("nameInput").value.trim();
+  const code = document.getElementById("joinCodeInput").value.trim().toUpperCase();
+  if (!code) return showError("Enter a room code.");
+  if (!uid) return showError("Still connecting, try again in a second.");
+  gameRef = db.ref("games/" + code);
+  gameRef.once("value").then(snap => {
+    const data = snap.val();
+    if (!data) return showError("No game found with that code.");
+    if (data.players && data.players[uid]) { gameCode = code; return Promise.resolve(); } // reconnect
+    if (!playerName) return showError("Enter your name first.");
+    const existingCount = Object.keys(data.players || {}).length;
+    if (existingCount >= 2) return showError("That game already has two players.");
+    gameCode = code;
+    return gameRef.child("players/" + uid).set({ name: playerName, color: 2 });
+  }).then(() => { if (gameCode) attachGameListener(); })
+    .catch(e => showError("Could not join: " + e.message));
+}
+
+function attachGameListener() {
+  gameRef.on("value", snap => {
+    gameData = snap.val();
+    if (!gameData) return;
+    const players = gameData.players || {};
+    myColor = players[uid] ? players[uid].color : null;
+    opponentUid = Object.keys(players).find(id => id !== uid) || null;
+
+    // Host: once both players are present and the round hasn't been initialized yet, start it.
+    if (gameData.hostUid === uid && gameData.status === "lobby" && Object.keys(players).length === 2 && !gameData.board) {
+      startRound(1);
+    }
+    render();
+  });
+}
+
+function leaveGame() {
+  location.reload();
+}
+
+// ==================================================================
+// GAME LOGIC (deterministic, computed client-side — the board is
+// fully public in Connect 4, so there's no hidden state to protect)
+// ==================================================================
+const COLS = 7, ROWS = 6;
+
+function emptyBoard() {
+  const b = [];
+  for (let r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(0));
+  return b;
+}
+function lowestEmptyRow(boardArr, col) {
+  for (let r = ROWS - 1; r >= 0; r--) if (boardArr[r][col] === 0) return r;
+  return -1;
+}
+const WIN_DIRECTIONS = [{ dr: 0, dc: 1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }, { dr: 1, dc: -1 }];
+function checkWin(boardArr, row, col, player) {
+  for (const { dr, dc } of WIN_DIRECTIONS) {
+    const cells = [[row, col]];
+    let r = row + dr, c = col + dc;
+    while (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardArr[r][c] === player) { cells.push([r, c]); r += dr; c += dc; }
+    r = row - dr; c = col - dc;
+    while (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardArr[r][c] === player) { cells.push([r, c]); r -= dr; c -= dc; }
+    if (cells.length >= 4) return cells;
+  }
+  return null;
+}
+function isBoardFull(boardArr) { return boardArr[0].every(cell => cell !== 0); }
+
+function startRound(startingPlayer) {
+  gameRef.update({
+    status: "playing",
+    board: emptyBoard(),
+    currentPlayer: startingPlayer,
+    startingPlayer: startingPlayer,
+    winner: null,
+    winCells: null,
+    lastMove: null,
+    roundId: Date.now()
+  });
+}
+
+function isMyTurn() {
+  return gameData && gameData.status === "playing" && gameData.currentPlayer === myColor;
+}
+
+function attemptDrop(col) {
+  if (!gameData || !isMyTurn() || isAnimating) return;
+  const row = lowestEmptyRow(gameData.board, col);
+  if (row === -1) { shakeCol = col; shakeStart = performance.now(); return; }
+
+  const newBoard = gameData.board.map(r => r.slice());
+  newBoard[row][col] = myColor;
+  const win = checkWin(newBoard, row, col, myColor);
+  const full = isBoardFull(newBoard);
+
+  const updates = { board: newBoard, lastMove: { row, col, player: myColor, ts: Date.now() } };
+  if (win) {
+    updates.status = "ended";
+    updates.winner = myColor;
+    updates.winCells = win;
+    updates["scores/" + myColor] = (gameData.scores ? gameData.scores[myColor] || 0 : 0) + 1;
+  } else if (full) {
+    updates.status = "ended";
+    updates.winner = "draw";
+    updates["scores/draw"] = (gameData.scores ? gameData.scores.draw || 0 : 0) + 1;
+  } else {
+    updates.currentPlayer = myColor === 1 ? 2 : 1;
+  }
+  gameRef.update(updates).catch(e => toast("Move failed: " + e.message));
+}
+
+function playAgain() {
+  document.getElementById("winOverlay").classList.remove("active");
+  if (!gameData) return;
+  const nextStarting = (gameData.startingPlayer === 1) ? 2 : 1;
+  startRound(nextStarting);
+}
+
+// ==================================================================
+// RENDER ORCHESTRATION
+// ==================================================================
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function escapeHtml(str) { const d = document.createElement("div"); d.textContent = str; return d.innerHTML; }
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toastEl");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+let lastSeenRoundId = null;
+let lastSeenMoveKey = null;
+
+function render() {
+  if (!gameData) return;
+
+  if (gameData.status === "lobby") {
+    showScreen("screen-lobby");
+    document.getElementById("lobbyCode").textContent = gameCode;
+    const count = Object.keys(gameData.players || {}).length;
+    document.getElementById("lobbyStatusText").textContent = count < 2 ? "Waiting for opponent to join..." : "Opponent found! Starting...";
+    return;
+  }
+
+  showScreen("screen-game");
+
+  const players = gameData.players || {};
+  const p1Entry = Object.entries(players).find(([, p]) => p.color === 1);
+  const p2Entry = Object.entries(players).find(([, p]) => p.color === 2);
+  const p1Name = p1Entry ? p1Entry[1].name : "Player 1";
+  const p2Name = p2Entry ? p2Entry[1].name : "Player 2";
+  document.getElementById("p1ScoreName").textContent = p1Name;
+  document.getElementById("p2ScoreName").textContent = p2Name;
+  const scores = gameData.scores || { 1: 0, 2: 0, draw: 0 };
+  document.getElementById("p1Score").textContent = scores[1] || 0;
+  document.getElementById("p2Score").textContent = scores[2] || 0;
+  document.getElementById("drawScore").textContent = scores.draw || 0;
+
+  // New round detection — reset local animation state. lastSeenMoveKey is synced to
+  // whatever lastMove already is right now (not unconditionally cleared), so a client
+  // reconnecting mid-round doesn't replay the drop animation for a move that's already
+  // reflected in the board we're about to rebuild instantly below.
+  if (gameData.roundId !== lastSeenRoundId) {
+    lastSeenRoundId = gameData.roundId;
+    lastSeenMoveKey = gameData.lastMove ? (gameData.lastMove.row + "-" + gameData.lastMove.col + "-" + gameData.lastMove.ts) : null;
+    settled = [];
+    winCells = null;
+    activeDrop = null;
+    isAnimating = false;
+    document.getElementById("winOverlay").classList.remove("active");
+    if (gameData.board) rebuildSettledFromBoard(gameData.board);
+  }
+
+  const banner = document.getElementById("turnBanner");
+  if (gameData.status === "playing") {
+    const turnName = gameData.currentPlayer === 1 ? p1Name : p2Name;
+    const color = gameData.currentPlayer === 1 ? { fill: "#ff4d5e", dark: "#b2202f" } : { fill: "#ffd23f", dark: "#cf9c0a" };
+    const isMe = gameData.currentPlayer === myColor;
+    banner.innerHTML = `<span class="dot" style="background:${color.fill}; border:2px solid ${color.dark};"></span> ${isMe ? "Your turn!" : escapeHtml(turnName) + "'s turn"}`;
+  }
+
+  // Animate a new confirmed move
+  const move = gameData.lastMove;
+  if (move) {
+    const key = move.row + "-" + move.col + "-" + move.ts;
+    if (key !== lastSeenMoveKey) {
+      lastSeenMoveKey = key;
+      beginDropAnimation(move.row, move.col, move.player);
+    }
+  }
+
+  if (gameData.status === "ended" && !winShownForRound) {
+    winCells = gameData.winCells || null;
+    winShownForRound = true;
+    const delay = winCells ? 3200 : 1600;
+    setTimeout(() => {
+      if (gameData.winner === "draw") showWinOverlay("It's a Draw!", "The board is completely full.");
+      else {
+        const winnerName = gameData.winner === 1 ? p1Name : p2Name;
+        showWinOverlay(`${winnerName} Wins! 🎉`, "Four in a row!");
+        const [wr, wc] = winCells[0];
+        spawnConfetti(colCenterX(wc), rowCenterY(wr));
+      }
+    }, delay);
+  }
+  if (gameData.status === "playing") winShownForRound = false;
+}
+let winShownForRound = false;
+
+function showWinOverlay(title, sub) {
+  document.getElementById("winTitle").textContent = title;
+  document.getElementById("winSub").textContent = sub;
+  document.getElementById("winOverlay").classList.add("active");
+}
+
+function rebuildSettledFromBoard(boardArr) {
+  settled = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (boardArr[r][c] !== 0) settled.push({ row: r, col: c, player: boardArr[r][c] });
+    }
+  }
+}
+
+// ==================================================================
+// CANVAS BOARD — coins, bounce-drop animation, confetti, and the
+// classic punched-hole frame (rendered on its own offscreen canvas
+// so the holes are genuinely transparent rather than erasing coins
+// already drawn on the same buffer).
+// ==================================================================
+const CELL = 88, PAD_X = 24, PAD_TOP = 100, PAD_BOTTOM = 24;
+const BOARD_LEFT = PAD_X, BOARD_TOP = PAD_TOP;
+const COIN_R = 38, HOLE_R = 40;
+const CANVAS_W = COLS * CELL + PAD_X * 2;
+const CANVAS_H = PAD_TOP + ROWS * CELL + PAD_BOTTOM;
+const COLORS = { 1: { fill: "#ff4d5e", dark: "#b2202f" }, 2: { fill: "#ffd23f", dark: "#cf9c0a" } };
+
+function colCenterX(col) { return BOARD_LEFT + col * CELL + CELL / 2; }
+function rowCenterY(row) { return BOARD_TOP + row * CELL + CELL / 2; }
+
+let settled = [];
+let currentAnimPlayer = null;
+let isAnimating = false;
+let activeDrop = null;
+let hoverCol = -1;
+let shakeCol = -1, shakeStart = 0;
+let winCells = null;
+let confetti = [];
+
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+
+const frameCanvas = document.createElement("canvas");
+frameCanvas.width = CANVAS_W;
+frameCanvas.height = CANVAS_H;
+const fctx = frameCanvas.getContext("2d");
+
+function renderFrameLayer(shakeOffset) {
+  fctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  fctx.save();
+  fctx.fillStyle = "#2f6fd8";
+  roundRect(fctx, BOARD_LEFT - 14, BOARD_TOP - 14, COLS * CELL + 28, ROWS * CELL + 28, 22);
+  fctx.fill();
+  fctx.lineWidth = 6;
+  fctx.strokeStyle = "#1d4fa8";
+  fctx.stroke();
+  fctx.globalCompositeOperation = "destination-out";
+  for (let c = 0; c < COLS; c++) {
+    let cx = colCenterX(c);
+    if (c === shakeCol) cx += shakeOffset;
+    for (let r = 0; r < ROWS; r++) {
+      fctx.beginPath();
+      fctx.arc(cx, rowCenterY(r), HOLE_R, 0, Math.PI * 2);
+      fctx.fill();
+    }
+  }
+  fctx.restore();
+}
+
+function easeOutBounce(t) {
+  const n1 = 7.5625, d1 = 2.75;
+  if (t < 1 / d1) return n1 * t * t;
+  if (t < 2 / d1) { t -= 1.5 / d1; return n1 * t * t + 0.75; }
+  if (t < 2.5 / d1) { t -= 2.25 / d1; return n1 * t * t + 0.9375; }
+  t -= 2.625 / d1; return n1 * t * t + 0.984375;
+}
+
+function beginDropAnimation(row, col, player) {
+  const fallRows = row + 1;
+  const duration = 550 + fallRows * 95;
+  activeDrop = { col, row, player, startY: 40, targetY: rowCenterY(row), startTime: performance.now(), duration };
+  isAnimating = true;
+}
+function onDropSettled() {
+  const { row, col, player } = activeDrop;
+  settled.push({ row, col, player });
+  activeDrop = null;
+  isAnimating = false;
+}
+
+function colFromEvent(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = CANVAS_W / rect.width;
+  const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+  const x = (clientX - rect.left) * scaleX;
+  const col = Math.floor((x - BOARD_LEFT) / CELL);
+  return (col >= 0 && col < COLS) ? col : -1;
+}
+canvas.addEventListener("mousemove", (e) => { hoverCol = colFromEvent(e); });
+canvas.addEventListener("mouseleave", () => { hoverCol = -1; });
+canvas.addEventListener("click", (e) => {
+  const col = colFromEvent(e);
+  if (col < 0) return;
+  if (!gameData || gameData.status !== "playing") return;
+  if (!isMyTurn()) { toast("Not your turn yet"); return; }
+  attemptDrop(col);
+});
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const col = colFromEvent(e);
+  if (col < 0) return;
+  if (!gameData || gameData.status !== "playing") return;
+  if (!isMyTurn()) { toast("Not your turn yet"); return; }
+  attemptDrop(col);
+}, { passive: false });
+
+function spawnConfetti(x, y) {
+  const colors = ["#ff4d5e", "#ffd23f", "#4fc3f7", "#7ee787", "#c792ff"];
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 6;
+    confetti.push({
+      x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 4,
+      size: 5 + Math.random() * 5, color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, life: 1
+    });
+  }
+}
+function updateConfetti() {
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const p = confetti[i];
+    p.vy += 0.18; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 0.006;
+    if (p.life <= 0) confetti.splice(i, 1);
+  }
+}
+
+function drawCoin(x, y, player, scale) {
+  scale = scale || 1;
+  const c = COLORS[player];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.ellipse(2, 4, COIN_R * 0.95, COIN_R * 0.95, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, COIN_R, 0, Math.PI * 2);
+  ctx.fillStyle = c.fill;
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = c.dark;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(-COIN_R * 0.32, -COIN_R * 0.35, COIN_R * 0.32, COIN_R * 0.18, -0.5, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.fill();
+  ctx.restore();
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  if (hoverCol >= 0 && !isAnimating && gameData && isMyTurn() && lowestEmptyRow(gameData.board, hoverCol) !== -1) {
+    ctx.globalAlpha = 0.45;
+    drawCoin(colCenterX(hoverCol), 40, myColor);
+    ctx.globalAlpha = 1;
+  }
+
+  settled.forEach(s => {
+    const isWinning = winCells && winCells.some(([r, c]) => r === s.row && c === s.col);
+    let scale = 1;
+    if (isWinning) scale = 1 + Math.sin(performance.now() / 160) * 0.08;
+    drawCoin(colCenterX(s.col), rowCenterY(s.row), s.player, scale);
+  });
+
+  if (activeDrop) {
+    const t = Math.min(1, (performance.now() - activeDrop.startTime) / activeDrop.duration);
+    const eased = easeOutBounce(t);
+    const y = activeDrop.startY + (activeDrop.targetY - activeDrop.startY) * eased;
+    drawCoin(colCenterX(activeDrop.col), y, activeDrop.player);
+    if (t >= 1) onDropSettled();
+  }
+
+  let shakeOffset = 0;
+  if (shakeCol >= 0) {
+    const age = performance.now() - shakeStart;
+    if (age < 300) shakeOffset = Math.sin(age / 22) * 6 * (1 - age / 300);
+    else shakeCol = -1;
+  }
+  renderFrameLayer(shakeOffset);
+  ctx.drawImage(frameCanvas, 0, 0);
+
+  confetti.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+    ctx.restore();
+  });
+  updateConfetti();
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
